@@ -16,6 +16,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
+ * Or visit http://www.fsf.org/ 
  */
 
 
@@ -50,6 +51,8 @@ static char latin1_to_ascii[] =
     "Th N  O  O  O  O  Oe *  O  U  U  U  Ue Y  Th ss "
     "a  a  a  a  ae a  ae c  e  e  e  e  i  i  i  i  "
     "th n  o  o  o  o  oe :  o  u  u  u  ue y  th y  ";
+
+
 /*
  * os_font_data
  *
@@ -181,10 +184,9 @@ void os_set_text_style (int new_style)
  * choose fonts which aren't supported by the interface.
  *
  */
-void os_set_font (int new_font)
+void os_set_font (int UNUSED(new_font))
 {
     /* Not implemented */
-
 }/* os_set_font */
 
 
@@ -201,8 +203,7 @@ void os_set_font (int new_font)
  */
 void os_display_char (zchar c)
 {
-
-    if (c >= ZC_LATIN1_MIN && c <= ZC_LATIN1_MAX) {
+    if (c >= ZC_LATIN1_MIN) {
         if (u_setup.plain_ascii) {
 
 	  char *ptr = latin1_to_ascii + 3 * (c - ZC_LATIN1_MIN);
@@ -272,18 +273,17 @@ void os_display_string (const zchar *s)
  */
 int os_char_width (zchar c)
 {
-    if (c >= ZC_LATIN1_MIN && c <= ZC_LATIN1_MAX && u_setup.plain_ascii) {
+    if (c >= ZC_LATIN1_MIN && u_setup.plain_ascii) {
 
         int width = 0;
         const char *ptr = latin1_to_ascii + 3 * (c - ZC_LATIN1_MIN);
-	char c1 = *ptr++;
-	char c2 = *ptr++;
-	char c3 = *ptr++;
+	char c2, c3;
 
-	/* Why, oh, why did you declare variables that way??? */
+	ptr++;
+	c2 = *ptr++;
+	c3 = *ptr++;
 
-	if (c1 == c1)  /* let's avoid confusing the compiler (and me) */
-	  width++;
+	width++;
 	if (c2 != ' ')
 	  width++;
 	if (c3 != ' ')

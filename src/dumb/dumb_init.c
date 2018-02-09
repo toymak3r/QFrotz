@@ -1,29 +1,47 @@
-/* dumb-init.c
- * $Id: dumb-init.c,v 1.1.1.1 2002/03/26 22:38:34 feedle Exp $
+/*
+ * dumb-init.c - Dumb interface, initialization
  *
- * Copyright 1997,1998 Alva Petrofsky <alva@petrofsky.berkeley.ca.us>.
- * Any use permitted provided this notice stays intact.
+ * This file is part of Frotz.
+ *
+ * Frotz is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * Frotz is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
+ * Or visit http://www.fsf.org/
  */
 
+#include <libgen.h>
 #include "dumb_frotz.h"
+#include "dumb_blorb.h"
 
 f_setup_t f_setup;
 
+static char *my_strdup(char *);
+static void print_version(void);
+
 #define INFORMATION "\
 An interpreter for all Infocom and other Z-Machine games.\n\
-Complies with standard 1.0 of Graham Nelson's specification.\n\
 \n\
 Syntax: dfrotz [options] story-file\n\
-  -a   watch attribute setting \t  R xxx  do runtime setting \\xxx\n\
-  -A   watch attribute testing \t    before starting (can be used repeatedly)\n\
-  -h # screen height           \t -s # random number seed value\n\
-  -i   ignore fatal errors     \t -S # transcript width\n\
-  -I # interpreter number      \t -t   set Tandy bit\n\
-  -o   watch object movement   \t -u # slots for multiple undo\n\
-  -O   watch object locating   \t -w # screen width\n\
-  -p   plain ASCII output only \t -x   expand abbreviations g/x/z\n\
-  -P   alter piracy opcode"
-
+  -a   watch attribute setting    \t -P   alter piracy opcode\n\
+  -A   watch attribute testing    \t -R <path> restricted read/write\n\
+  -h # screen height              \t -s # random number seed value\n\
+  -i   ignore fatal errors        \t -S # transcript width\n\
+  -I # interpreter number         \t -t   set Tandy bit\n\
+  -o   watch object movement      \t -u # slots for multiple undo\n\
+  -O   watch object locating      \t -v   show version information\n\
+  -L <file> load this save file   \t -w # screen width\n\
+  -m   turn off MORE prompts      \t -x   expand abbreviations g/x/z\n\
+  -p   plain ASCII output only\n"
 
 /* A unix-like getopt, but with the names changed to avoid any problems.  */
 static int zoptind = 1;
@@ -72,27 +90,33 @@ static bool plain_ascii = FALSE;
 void os_process_arguments(int argc, char *argv[])
 {
     int c;
+    char *p = NULL;
 
     do_more_prompts = TRUE;
     /* Parse the options */
     do {
-	c = zgetopt(argc, argv, "aAh:iI:moOpPs:R:S:tu:w:xZ:");
+	c = zgetopt(argc, argv, "-aAh:iI:L:moOpPs:r:R:S:tu:vw:xZ:");
 	switch(c) {
 	  case 'a': f_setup.attribute_assignment = 1; break;
 	  case 'A': f_setup.attribute_testing = 1; break;
 	case 'h': user_screen_height = atoi(zoptarg); break;
 	  case 'i': f_setup.ignore_errors = 1; break;
 	  case 'I': f_setup.interpreter_number = atoi(zoptarg); break;
+	case 'L': f_setup.restore_mode = 1;
+		  f_setup.tmp_save_name = my_strdup(zoptarg);
+		  break;
 	  case 'm': do_more_prompts = FALSE; break;
 	  case 'o': f_setup.object_movement = 1; break;
 	  case 'O': f_setup.object_locating = 1; break;
 	  case 'P': f_setup.piracy = 1; break;
 	case 'p': plain_ascii = 1; break;
-	case 'R': dumb_handle_setting(zoptarg, FALSE, TRUE); break;
+	case 'r': dumb_handle_setting(zoptarg, FALSE, TRUE); break;
+	case 'R': f_setup.restricted_path = strndup(zoptarg, PATH_MAX); break;
 	case 's': user_random_seed = atoi(zoptarg); break;
 	  case 'S': f_setup.script_cols = atoi(zoptarg); break;
 	case 't': user_tandy_bit = 1; break;
 	  case 'u': f_setup.undo_slots = atoi(zoptarg); break;
+	case 'v': print_version(); exit(2); break;
 	case 'w': user_screen_width = atoi(zoptarg); break;
 	  case 'x': f_setup.expand_abbreviations = 1; break;
 	  case 'Z': f_setup.err_report_mode = atoi(zoptarg);
@@ -104,7 +128,7 @@ void os_process_arguments(int argc, char *argv[])
     } while (c != EOF);
 
     if (((argc - zoptind) != 1) && ((argc - zoptind) != 2)) {
-	printf("FROTZ V%s\tdumb interface.\n", VERSION);
+	printf("FROTZ V%s\tDumb interface.\n", VERSION);
 	puts(INFORMATION);
 	printf("\t-Z # error checking mode (default = %d)\n"
 	    "\t     %d = don't report errors   %d = report first error\n"
@@ -114,17 +138,37 @@ void os_process_arguments(int argc, char *argv[])
 	printf("While running, enter \"\\help\" to list the runtime escape sequences\n\n");
 	exit(1);
     }
-/*
-    if (((argc - zoptind) != 1) && ((argc - zoptind) != 2)) {
-	puts(usage);
-	exit(1);
-    }
-*/
-    f_setup.story_file = argv[zoptind++];
-    if (zoptind < argc)
-	graphics_filename = argv[zoptind++];
 
-    f_setup.save_name = malloc(FILENAME_MAX);
+    /* Create nice default file names */
+
+    f_setup.story_file = my_strdup(argv[zoptind++]);
+    if (zoptind < argc)
+	graphics_filename = my_strdup(argv[zoptind++]);
+
+    f_setup.story_name = my_strdup(basename(f_setup.story_file));
+
+    /* Now strip off the extension */
+    p = strrchr(f_setup.story_name, '.');
+    *p = '\0';	/* extension removed */
+
+
+    if (!f_setup.restore_mode) {
+      f_setup.save_name = malloc(strlen(f_setup.story_name) * sizeof(char) + 5);
+      strncpy(f_setup.save_name, f_setup.story_name, strlen(f_setup.story_name));
+      strncat(f_setup.save_name, EXT_SAVE, strlen(EXT_SAVE));
+    } else { /* Set our auto load save as the name save */
+      f_setup.save_name = malloc(strlen(f_setup.tmp_save_name) * sizeof(char) + 5);
+      strncpy(f_setup.save_name, f_setup.tmp_save_name, strlen(f_setup.tmp_save_name));
+      free(f_setup.tmp_save_name);
+    }
+
+    f_setup.script_name = malloc(strlen(f_setup.story_name) * sizeof(char) + 5);
+    strncpy(f_setup.script_name, f_setup.story_name, strlen(f_setup.story_name));
+    strncat(f_setup.script_name, EXT_SCRIPT, strlen(EXT_SCRIPT));
+
+    f_setup.command_name = malloc((strlen(f_setup.story_name) + strlen(EXT_COMMAND)) * sizeof(char) + 1);
+    strncpy(f_setup.command_name, f_setup.story_name, strlen(f_setup.story_name) + 1);
+    strncat(f_setup.command_name, EXT_COMMAND, strlen(EXT_COMMAND));
 }
 
 void os_init_screen(void)
@@ -161,7 +205,7 @@ int os_random_seed (void)
     else return user_random_seed;
 }
 
-void os_restart_game (int stage) {}
+void os_restart_game (int UNUSED (stage)) {}
 
 void os_fatal (const char *s, ...)
 {
@@ -171,7 +215,30 @@ void os_fatal (const char *s, ...)
 
 FILE *os_load_story(void)
 {
-    return fopen(f_setup.story_file, "rb");
+    FILE *fp;
+
+    switch (dumb_blorb_init(f_setup.story_file)) {
+	case bb_err_NoBlorb:
+//	  printf("No blorb file found.\n\n");
+	  break;
+	case bb_err_Format:
+	  printf("Blorb file loaded, but unable to build map.\n\n");
+	  break;
+	case bb_err_NotFound:
+	  printf("Blorb file loaded, but lacks executable chunk.\n\n");
+	  break;
+	case bb_err_None:
+//	  printf("No blorb errors.\n\n");
+	  break;
+    }
+
+    fp = fopen(f_setup.story_file, "rb");
+
+    /* Is this a Blorb file containing Zcode? */
+    if (f_setup.exec_in_blorb)
+	 fseek(fp, blorb_res.data.startpos, SEEK_SET);
+
+    return fp;
 }
 
 /*
@@ -186,14 +253,13 @@ int os_storyfile_seek(FILE * fp, long offset, int whence)
 
 /*
  * Tell the position in a storyfile, either a standalone file
- * or the ZCODE chunk of a blorb file (dumb does not support 
+ * or the ZCODE chunk of a blorb file (dumb does not support
  * blorb so this is just a wrapper for fseek)
- */ 
+ */
 int os_storyfile_tell(FILE * fp)
 {
     return ftell(fp);
 }
-
 
 void os_init_setup(void)
 {
@@ -214,3 +280,36 @@ void os_init_setup(void)
 	f_setup.restore_mode = 0;
 
 }
+
+char *my_strdup(char *src)
+{
+	char *str;
+	char *p;
+	int len = 0;
+
+	while (src[len])
+		len++;
+	str = malloc(len + 1);
+	p = str;
+	while (*src)
+        *p++ = *src++;
+	*p = '\0';
+	return str;
+}
+
+
+static void print_version(void)
+{
+    printf("FROTZ V%s\t", VERSION);
+    printf("Dumb interface.\n");
+    printf("Git commit:\t%s\n", GIT_HASH);
+    printf("Git tag:\t%s\n", GIT_TAG);
+    printf("Git branch:\t%s\n", GIT_BRANCH);
+    printf("  Frotz was originally written by Stefan Jokisch.\n");
+    printf("  It complies with standard 1.0 of Graham Nelson's specification.\n");
+    printf("  It was ported to Unix by Galen Hazelwood.\n");
+    printf("  The core and dumb port are currently maintained by David Griffith.\n");
+    printf("  See https://github.com/DavidGriffith/frotz for Frotz's homepage.\n\n");
+    return;
+}
+

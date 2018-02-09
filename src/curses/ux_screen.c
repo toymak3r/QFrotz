@@ -16,6 +16,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
+ * Or visit http://www.fsf.org/
  */
 
 #define __UNIX_PORT_FILE
@@ -44,7 +45,7 @@
  * being erased.  This is not relevant for the curses interface.
  *
  */
-void os_erase_area (int top, int left, int bottom, int right, int win)
+void os_erase_area (int top, int left, int bottom, int right, int UNUSED(win))
 {
     int y, x, i, j;
 

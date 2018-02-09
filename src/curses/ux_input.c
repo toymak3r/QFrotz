@@ -16,6 +16,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
+ * Or visit http://www.fsf.org/
  */
 
 
@@ -35,6 +36,9 @@
 #endif
 
 #include "ux_frotz.h"
+
+static int start_of_prev_word(int, const zchar*);
+static int end_of_next_word(int, const zchar*, int);
 
 static struct timeval global_timeout;
 
@@ -66,7 +70,6 @@ extern int completion (const zchar *, zchar *);
  * equals global_timeout, boom.
  *
  */
-
 static void unix_set_global_timeout(int timeout)
 {
     if (!timeout) global_timeout.tv_sec = 0;
@@ -79,9 +82,14 @@ static void unix_set_global_timeout(int timeout)
           global_timeout.tv_usec -= 1000000;
         }
     }
+    return;
 }
 
-/* This returns the number of milliseconds until the input timeout
+
+/*
+ * timeout_to_ms
+ *
+ * This returns the number of milliseconds until the input timeout
  * elapses or zero if it has already elapsed.  -1 is returned if no
  * timeout is in effect, otherwise the return value is non-negative.
  */
@@ -103,6 +111,7 @@ static int timeout_to_ms()
 	return INT_MAX - 1000;
     return diff.tv_sec * 1000 + diff.tv_usec / 1000;
 }
+
 
 /*
  * unix_read_char
@@ -230,7 +239,7 @@ static int unix_read_char(int extkeys)
 	case MOD_META | 'f': return ZC_WORD_RIGHT;
 	case MOD_META | 'b': return ZC_WORD_LEFT;
 
-/* these are the emacs-editing characters */
+	/* these are the emacs-editing characters */
 	case MOD_CTRL ^ 'B': return ZC_ARROW_LEFT;
 	case MOD_CTRL ^ 'F': return ZC_ARROW_RIGHT;
 	case MOD_CTRL ^ 'P': return ZC_ARROW_UP;
@@ -250,8 +259,7 @@ static int unix_read_char(int extkeys)
 	 * to use one of the emacs keys that isn't implemented and he
 	 * gets a random hot key function.  It's less jarring to catch
 	 * them and do nothing.  [APP] */
-      if ((c >= ZC_HKEY_MIN) && (c <= ZC_HKEY_MAX))
-	continue;
+      if ((c >= ZC_HKEY_MIN) && (c <= ZC_HKEY_MAX)) continue;
 
 	/* Finally, if we're in full line mode (os_read_line), we
 	   might return codes which aren't legal Z-machine keys but
@@ -267,7 +275,6 @@ static int unix_read_char(int extkeys)
  * Add the given string to the next available history buffer slot.
  *
  */
-
 static void unix_add_to_history(zchar *str)
 {
 
@@ -277,7 +284,10 @@ static void unix_add_to_history(zchar *str)
     strcpy( *history_next, (char *)str);
     RING_INC( history_next, history_buffer, history_end);
     history_view = history_next; /* Reset user frame after each line */
+
+    return;
 }
+
 
 /*
  * unix_history_back
@@ -298,11 +308,12 @@ static int unix_history_back(zchar *str, int searchlen, int maxlen)
 	    history_view = prev;
 	    return 0;
 	}
-    } while (strlen( *history_view) > maxlen
+    } while (strlen( *history_view) > (size_t) maxlen
 	     || (searchlen != 0 && strncmp( (char *)str, *history_view, searchlen)));
     strcpy((char *)str + searchlen, *history_view + searchlen);
     return 1;
 }
+
 
 /*
  * unix_history_forward
@@ -322,11 +333,12 @@ static int unix_history_forward(zchar *str, int searchlen, int maxlen)
 	    history_view = prev;
 	    return 0;
 	}
-    } while (strlen( *history_view) > maxlen
+    } while (strlen( *history_view) > (size_t) maxlen
 	     || (searchlen != 0 && strncmp( (char *)str, *history_view, searchlen)));
     strcpy((char *)str + searchlen, *history_view + searchlen);
     return 1;
 }
+
 
 /*
  * scrnmove
@@ -334,7 +346,6 @@ static int unix_history_forward(zchar *str, int searchlen, int maxlen)
  * In the row of the cursor, move n characters starting at src to dest.
  *
  */
-
 static void scrnmove(int dest, int src, int n)
 {
     int col, x, y;
@@ -352,7 +363,10 @@ static void scrnmove(int dest, int src, int n)
       }
     }
     move(y, x);
+
+    return;
 }
+
 
 /*
  * scrnset
@@ -360,7 +374,6 @@ static void scrnmove(int dest, int src, int n)
  * In the row of the cursor, set n characters starting at start to c.
  *
  */
-
 static void scrnset(int start, int c, int n)
 {
     int y, x;
@@ -368,7 +381,10 @@ static void scrnset(int start, int c, int n)
     while (n--)
 	mvaddch(y, start + n, c);
     move(y, x);
+
+    return;
 }
+
 
 /*
  * os_read_line
@@ -415,7 +431,6 @@ static void scrnset(int start, int c, int n)
  * to implement word completion (similar to tcsh under Unix).
  *
  */
-
 zchar os_read_line (int max, zchar *buf, int timeout, int width, int continued)
 {
     int ch, y, x, len = strlen( (char *)buf);
@@ -588,6 +603,7 @@ zchar os_read_line (int max, zchar *buf, int timeout, int width, int continued)
     }
 }/* os_read_line */
 
+
 /*
  * os_read_key
  *
@@ -595,7 +611,6 @@ zchar os_read_line (int max, zchar *buf, int timeout, int width, int continued)
  * return it. Input aborts after timeout/10 seconds.
  *
  */
-
 zchar os_read_key (int timeout, int cursor)
 {
     zchar c;
@@ -610,6 +625,7 @@ zchar os_read_key (int timeout, int cursor)
     return c;
 
 }/* os_read_key */
+
 
 /*
  * os_read_file_name
@@ -631,10 +647,12 @@ zchar os_read_key (int timeout, int cursor)
  *
  */
 
-int os_read_file_name (char *file_name, const char *default_name, int flag)
+int os_read_file_name (char *file_name, const char *default_name, int UNUSED(flag))
 {
     int saved_replay = istream_replay;
     int saved_record = ostream_record;
+    int i;
+    char *tempname;
 
     /* Turn off playback and recording temporarily */
 
@@ -658,6 +676,23 @@ int os_read_file_name (char *file_name, const char *default_name, int flag)
     if (file_name[0] == 0)
         strcpy (file_name, default_name);
 
+    /* Check if we're restricted to one directory. */
+
+    if (f_setup.restricted_path != NULL) {
+	for (i = strlen(file_name); i > 0; i--) {
+	    if (file_name[i] == PATH_SEPARATOR) {
+		i++;
+		break;
+	    }
+	}
+	tempname = strdup(file_name + i);
+	strcpy(file_name, f_setup.restricted_path);
+	if (file_name[strlen(file_name)-1] != PATH_SEPARATOR) {
+	    strcat(file_name, "/");
+	}
+	strcat(file_name, tempname);
+    }
+
     /* Restore state of playback and recording */
 
     istream_replay = saved_replay;
@@ -678,7 +713,7 @@ int os_read_file_name (char *file_name, const char *default_name, int flag)
 zword os_read_mouse (void)
 {
 	/* INCOMPLETE */
-
+    return 0;
 } /* os_read_mouse */
 
 
@@ -711,6 +746,7 @@ void *memmove(void *s, void *t, size_t n)
 		p += n; q += n;
 		while (n--) *--p = *--q;
 	}
+	return;
 }
 
 #endif /* NO_MEMMOVE */
@@ -722,7 +758,7 @@ void *memmove(void *s, void *t, size_t n)
  * param buf input buffer
  * returns new position
  */
-int start_of_prev_word(int currpos, const zchar* buf) {
+static int start_of_prev_word(int currpos, const zchar* buf) {
 	int i, j;
 	for (i = currpos - 1; i > 0 && buf[i] == ' '; i--) {}
 	j = i;
@@ -740,10 +776,9 @@ int start_of_prev_word(int currpos, const zchar* buf) {
  * param len length of buf
  * returns new position
  */
-int end_of_next_word(int currpos, const zchar* buf, int len) {
-	int i, j;
+static int end_of_next_word(int currpos, const zchar* buf, int len) {
+	int i;
 	for (i = currpos; i < len && buf[i] == ' '; i++) {}
-	j = i;
 	for (; i < len && buf[i] != ' '; i++) {}
 	return i;
 }

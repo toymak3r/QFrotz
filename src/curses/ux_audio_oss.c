@@ -19,6 +19,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
+ * Or visit http://www.fsf.org/
  */
 
 #define __UNIX_PORT_FILE
@@ -47,7 +48,7 @@
 #include <sys/ioctl.h>
 #include <sys/wait.h>
 
-#include "../soundcard.h"
+#include <sys/soundcard.h>
 
 extern void end_of_sound(void);
 

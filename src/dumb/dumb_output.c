@@ -1,8 +1,22 @@
-/* dumb-output.c
- * $Id: dumb-output.c,v 1.2 2002/03/26 22:52:31 feedle Exp $
+/*
+ * dumb_output.c - Dumb interface, output functions
  *
- * Copyright 1997,1998 Alfresco Petrofsky <alfresco@petrofsky.berkeley.edu>.
- * Any use permitted provided this notice stays intact.
+ * This file is part of Frotz.
+ *
+ * Frotz is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * Frotz is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
+ * Or visit http://www.fsf.org/
  */
 
 #include "dumb_frotz.h"
@@ -74,7 +88,7 @@ static char *dumb_changes_row(int r)
 
 int os_char_width (zchar z)
 {
-    if (plain_ascii && z >= ZC_LATIN1_MIN && z <= ZC_LATIN1_MAX) {
+    if (plain_ascii && z >= ZC_LATIN1_MIN) {
 	char *p = latin1_to_ascii + 4 * (z - ZC_LATIN1_MIN);
 	return strchr(p, ' ') - p;
     }
@@ -164,7 +178,7 @@ void dumb_discard_old_input(int num_chars)
 
 void os_display_char (zchar c)
 {
-    if (c >= ZC_LATIN1_MIN && c <= ZC_LATIN1_MAX) {
+    if (c >= ZC_LATIN1_MIN) {
 	if (plain_ascii) {
 	    char *ptr = latin1_to_ascii + 4 * (c - ZC_LATIN1_MIN);
 	    do
@@ -199,7 +213,7 @@ void os_display_string (const zchar *s)
     }
 }
 
-void os_erase_area (int top, int left, int bottom, int right, int win)
+void os_erase_area (int top, int left, int bottom, int right, int UNUSED (win))
 {
     int row, col;
     top--; left--; bottom--; right--;
@@ -238,8 +252,8 @@ int os_font_data(int font, int *height, int *width)
     return 0;
 }
 
-void os_set_colour (int x, int y) {}
-void os_set_font (int x) {}
+void os_set_colour (int UNUSED (x), int UNUSED (y)) {}
+void os_set_font (int UNUSED (x)) {}
 
 /* Print a cell to stdout.  */
 static void show_cell(cell cel)
@@ -431,10 +445,11 @@ void os_beep (int volume)
 
 /* To make the common code happy */
 
-void os_prepare_sample (int a) {}
-void os_finish_with_sample (int a) {}
-void os_start_sample (int a, int b, int c, zword d) {}
-void os_stop_sample (int a) {}
+void os_init_sound(void) {}
+void os_prepare_sample (int UNUSED (a)) {}
+void os_finish_with_sample (int UNUSED (a)) {}
+void os_start_sample (int UNUSED (a), int UNUSED (b), int UNUSED (c), zword UNUSED (d)) {}
+void os_stop_sample (int UNUSED (a)) {}
 
 
 /* if val is '0' or '1', set *var accordingly, else toggle it.  */

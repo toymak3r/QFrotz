@@ -9,13 +9,15 @@
    But since no os_* function uses it, it's safe to let the frotz core see
    this definition, but have the unix port see the curses version. */
 
-#ifndef VERSION
-#define VERSION "2.44"
-#endif
+#include "defines.h"
+#include "git_hash.h"
 
 #ifndef __UNIX_PORT_FILE
 #include <signal.h>
 typedef int bool;
+#endif /* __UNIX_PORT_FILE */
+
+#include <stdio.h>
 
 #ifndef TRUE
 #define TRUE 1
@@ -25,11 +27,24 @@ typedef int bool;
 #define FALSE 0
 #endif
 
-#endif /* __UNIX_PORT_FILE */
+#ifndef PATH_MAX
+#  ifdef MAXPATHLEN                /* defined in <sys/param.h> some systems */
+#    define PATH_MAX      MAXPATHLEN
+#  else
+#    if FILENAME_MAX > 255         /* used like PATH_MAX on some systems */
+#      define PATH_MAX    FILENAME_MAX
+#    else
+#      define PATH_MAX    (FILNAMSIZ - 1)
+#    endif
+#  endif /* ?MAXPATHLEN */
+#endif /* !PATH_MAX */
 
 
-#include <stdio.h>
-
+#if defined(WIN32) || defined(_WIN32) || defined(WIN64) || defined(_WIN64) || defined (__CYGWIN__)
+#define PATH_SEPARATOR '\\'
+#else
+#define PATH_SEPARATOR '/'
+#endif
 
 /* typedef unsigned short zbyte; */
 typedef unsigned char zbyte;
@@ -108,6 +123,7 @@ typedef struct {
 
 
 #include "setup.h"
+#include "unused.h"
 
 /*** Constants that may be set at compile time ***/
 
@@ -118,7 +134,7 @@ typedef struct {
 #define MAX_FILE_NAME 80
 #endif
 #ifndef TEXT_BUFFER_SIZE
-#define TEXT_BUFFER_SIZE 200
+#define TEXT_BUFFER_SIZE 275
 #endif
 #ifndef INPUT_BUFFER_SIZE
 #define INPUT_BUFFER_SIZE 200
@@ -750,6 +766,7 @@ void 	os_fatal (const char *, ...);
 void 	os_finish_with_sample ();
 int  	os_font_data (int, int *, int *);
 void 	os_init_screen (void);
+void	os_init_sound (void);
 void 	os_more_prompt (void);
 int  	os_peek_colour (void);
 int  	os_picture_data (int, int *, int *);
@@ -770,5 +787,4 @@ void 	os_start_sample (int, int, int, zword);
 void 	os_stop_sample ();
 int  	os_string_width (const zchar *);
 void	os_init_setup (void);
-int	os_speech_output(const zchar *);
-
+void 	os_warn (const char *, ...);

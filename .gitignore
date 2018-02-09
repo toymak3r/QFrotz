@@ -6,7 +6,11 @@ dfrotz
 *.BAK
 *.SWP
 *.DSK
+*.EXE
+*.LIB
 *.a
-defines.h
-/tags
-/tmp
+src/*/defines.h
+src/common/git_hash.h
+*.z?
+src/test/*mem
+src/test/*rec

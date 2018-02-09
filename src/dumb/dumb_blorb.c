@@ -1,5 +1,5 @@
 /*
- * ux_blorb.c - Blorb routines
+ * dumb_blorb.c - Blorb routines
  *
  * This file is part of Frotz.
  *
@@ -19,8 +19,6 @@
  * Or visit http://www.fsf.org/
  */
 
-#define __UNIX_PORT_FILE
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -29,17 +27,10 @@
 #include <libgen.h>
 #include <math.h>
 
-#ifdef USE_NCURSES_H
-#include <ncurses.h>
-#else
-#include <curses.h>
-#endif
-
-#include "ux_frotz.h"
-#include "ux_blorb.h"
+#include "dumb_frotz.h"
+#include "dumb_blorb.h"
 
 f_setup_t f_setup;
-u_setup_t u_setup;
 
 FILE *blorb_fp;
 bb_result_t blorb_res;
@@ -51,7 +42,7 @@ static int isblorb(FILE *);
 
 
 /*
- * ux_blorb_init
+ * dumb_blorb_init
  *
  * Check if we're opening a Blorb file directly.  If not, check
  * to see if there's a seperate Blorb file that looks like it goes
@@ -61,7 +52,7 @@ static int isblorb(FILE *);
  * for a ZCOD chunk and record its location so os_load_story() can find it.
  * Make sure the Blorb file is opened and with the file pointer blorb_fp.
  */
-bb_err_t ux_blorb_init(char *filename)
+bb_err_t dumb_blorb_init(char *filename)
 {
     FILE *fp;
     char *p;

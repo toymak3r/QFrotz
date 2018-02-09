@@ -1,10 +1,26 @@
-/* dumb-input.c
- * $Id: dumb-input.c,v 1.1.1.1 2002/03/26 22:38:34 feedle Exp $
- * Copyright 1997,1998 Alpine Petrofsky <alpine@petrofsky.berkeley.ca.us>.
- * Any use permitted provided this notice stays intact.
+/*
+ * dumb_input.c - Dumb interface, input functions
+ *
+ * This file is part of Frotz.
+ *
+ * Frotz is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * Frotz is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
+ * Or visit http://www.fsf.org/
  */
 
 #include "dumb_frotz.h"
+
 f_setup_t f_setup;
 
 static char runtime_usage[] =
@@ -249,7 +265,7 @@ static bool dumb_read_line(char *s, char *prompt, bool show_cursor,
       if (type != INPUT_LINE_CONTINUED)
 	fprintf(stderr, "DUMB-FROTZ: No input to discard\n");
       else {
-	dumb_discard_old_input(strlen(continued_line_chars));
+	dumb_discard_old_input(strlen((char*) continued_line_chars));
 	continued_line_chars[0] = '\0';
 	type = INPUT_LINE;
       }
@@ -264,7 +280,7 @@ static bool dumb_read_line(char *s, char *prompt, bool show_cursor,
 	  for (i = 0; (i < h_screen_rows - 2) && *next_page; i++)
 	    next_page = strchr(next_page, '\n') + 1;
 	  /* next_page - current_page is width */
-	  printf("%.*s", next_page - current_page, current_page);
+	  printf("%.*s", (int) (next_page - current_page), current_page);
 	  current_page = next_page;
 	  if (!*current_page)
 	    break;
@@ -331,7 +347,7 @@ zchar os_read_key (int timeout, bool show_cursor)
   return c;
 }
 
-zchar os_read_line (int max, zchar *buf, int timeout, int width, int continued)
+zchar os_read_line (int UNUSED (max), zchar *buf, int timeout, int UNUSED(width), int continued)
 {
   char *p;
   int terminator;
@@ -372,7 +388,7 @@ zchar os_read_line (int max, zchar *buf, int timeout, int width, int continued)
   dumb_display_user_input(read_line_buffer);
 
   /* copy to the buffer and save the rest for next time.  */
-  strcat(buf, read_line_buffer);
+  strcat((char*) buf, read_line_buffer);
   p = read_line_buffer + strlen(read_line_buffer) + 1;
   memmove(read_line_buffer, p, strlen(p) + 1);
 
@@ -389,15 +405,41 @@ int os_read_file_name (char *file_name, const char *default_name, int flag)
 {
   char buf[INPUT_BUFFER_SIZE], prompt[INPUT_BUFFER_SIZE];
   FILE *fp;
+  char *tempname;
+  int i;
 
-  sprintf(prompt, "Please enter a filename [%s]: ", default_name);
-  dumb_read_misc_line(buf, prompt);
-  if (strlen(buf) > MAX_FILE_NAME) {
-    printf("Filename too long\n");
-    return FALSE;
+  /* If we're restoring a game before the interpreter starts,
+   * our filename is already provided.  Just go ahead silently.
+   */
+  if (f_setup.restore_mode) {
+    strcpy(file_name, default_name);
+    return TRUE;
+  } else {
+    sprintf(prompt, "Please enter a filename [%s]: ", default_name);
+    dumb_read_misc_line(buf, prompt);
+    if (strlen(buf) > MAX_FILE_NAME) {
+      printf("Filename too long\n");
+      return FALSE;
+    }
   }
 
   strcpy (file_name, buf[0] ? buf : default_name);
+
+  /* Check if we're restricted to one directory. */
+  if (f_setup.restricted_path != NULL) {
+    for (i = strlen(file_name); i > 0; i--) {
+      if (file_name[i] == PATH_SEPARATOR) {
+        i++;
+        break;
+      }
+    }
+    tempname = strdup(file_name + i);
+    strcpy(file_name, f_setup.restricted_path);
+    if (file_name[strlen(file_name)-1] != PATH_SEPARATOR) {
+      strcat(file_name, "/");
+    }
+    strcat(file_name, tempname);
+  }
 
   /* Warn if overwriting a file.  */
   if ((flag == FILE_SAVE || flag == FILE_SAVE_AUX || flag == FILE_RECORD)
